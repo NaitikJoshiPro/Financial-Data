@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FX Terminal</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-elevated: #111111;
+            --bg-card: #151515;
+            --border: #1f1f1f;
+            --border-hover: #2a2a2a;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-muted: #555555;
+            --accent-green: #00ff88;
+            --accent-red: #ff0055;
+            --accent-yellow: #ffcc00;
+            --shadow: rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                transparent 0%,
+                rgba(0, 255, 136, 0.03) 50%,
+                transparent 100%
+            );
+            pointer-events: none;
+            z-index: 1;
+            animation: scan 8s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 10;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            box-shadow: 0 0 20px var(--accent-green);
+            animation: pulse-green 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .brand-text {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--text-primary);
+        }
+
+        .system-status {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        .main-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.3fr 1fr;
+            gap: 1px;
+            background: var(--border);
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .panel-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat {
+            background: var(--bg-secondary);
+            padding: 16px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+            line-height: 1;
+        }
+
+        .stat:nth-child(1) .stat-value {
+            color: var(--accent-green);
+        }
+
+        .stat:nth-child(2) .stat-value {
+            color: var(--accent-red);
+        }
+
+        .stat:nth-child(3) .stat-value {
+            color: var(--text-primary);
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .content-area::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .content-area::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .content-area::-webkit-scrollbar-thumb {
+            background: var(--border-hover);
+        }
+
+        .content-area::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        .ticker-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            padding: 0;
+        }
+
+        .ticker-item {
+            background: var(--bg-card);
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            border: none;
+        }
+
+        .ticker-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .ticker-item:hover {
+            background: var(--bg-elevated);
+        }
+
+        .ticker-item.active-long {
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .ticker-item.active-long::before {
+            background: var(--accent-green);
+            box-shadow: 0 0 20px var(--accent-green);
+        }
+
+        .ticker-item.active-short {
+            background: rgba(255, 0, 85, 0.05);
+        }
+
+        .ticker-item.active-short::before {
+            background: var(--accent-red);
+            box-shadow: 0 0 20px var(--accent-red);
+        }
+
+        .ticker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .ticker-symbol {
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+        }
+
+        .ticker-status {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 3px 8px;
+            border-radius: 2px;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .ticker-item.active-long .ticker-status {
+            opacity: 1;
+            color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .ticker-item.active-short .ticker-status {
+            opacity: 1;
+            color: var(--accent-red);
+            background: rgba(255, 0, 85, 0.1);
+        }
+
+        .score-wrapper {
+            position: relative;
+        }
+
+        .score-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .score-input {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            padding: 10px 12px;
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .score-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .score-input:focus {
+            border-color: var(--border-hover);
+            background: var(--bg-primary);
+        }
+
+        .ticker-item.active-long .score-input:focus {
+            border-color: var(--accent-green);
+        }
+
+        .ticker-item.active-short .score-input:focus {
+            border-color: var(--accent-red);
+        }
+
+        .action-bar {
+            padding: 24px 32px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px 24px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s, height 0.4s;
+            border-radius: 50%;
+        }
+
+        .btn:hover::after {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-clear {
+            flex: 0.5;
+            border-color: var(--border-hover);
+        }
+
+        .btn-clear:hover {
+            border-color: var(--text-muted);
+        }
+
+        .btn-execute {
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            border-color: var(--text-primary);
+        }
+
+        .btn-execute:hover {
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+        }
+
+        .btn-execute:active {
+            transform: scale(0.98);
+        }
+
+        .output-panel {
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .output-header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .output-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .output-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .output-content::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        .output-content::-webkit-scrollbar-thumb {
+            background: var(--border-hover);
+        }
+
+        .output-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .output-table thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+            z-index: 10;
+        }
+
+        .output-table th {
+            padding: 16px 24px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .output-table td {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .output-table tbody tr {
+            transition: background 0.2s ease;
+        }
+
+        .output-table tbody tr:hover {
+            background: var(--bg-elevated);
+        }
+
+        .output-pair {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--text-primary);
+        }
+
+        .output-direction {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .output-direction.buy {
+            color: var(--accent-green);
+        }
+
+        .output-direction.sell {
+            color: var(--accent-red);
+        }
+
+        .output-score {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .empty-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .empty-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            max-width: 300px;
+        }
+
+        @media (max-width: 1400px) {
+            .ticker-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr;
+            }
+            
+            .ticker-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .ticker-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .top-bar {
+                padding: 16px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-overlay"></div>
+    <div class="scanline"></div>
+    
+    <div class="app-container">
+        <div class="top-bar">
+            <div class="brand">
+                <div class="brand-icon"></div>
+                <div class="brand-text">FX Terminal</div>
+            </div>
+            <div class="system-status">
+                <div class="status-item">
+                    <div class="status-dot"></div>
+                    <span>System Active</span>
+                </div>
+                <div class="status-item">
+                    <span id="timeDisplay"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Position Builder</div>
+                    <div class="panel-subtitle">Click pairs to toggle direction â¢ Only scored pairs execute</div>
+                </div>
+
+                <div class="stats-bar">
+                    <div class="stat">
+                        <div class="stat-label">Long</div>
+                        <div class="stat-value" id="longCount">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Short</div>
+                        <div class="stat-value" id="shortCount">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Active</div>
+                        <div class="stat-value" id="totalCount">0</div>
+                    </div>
+                </div>
+
+                <div class="content-area">
+                    <div class="ticker-grid" id="tickerGrid"></div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-clear" id="clearBtn">Clear</button>
+                    <button class="btn btn-execute" id="executeBtn">Execute Strategy</button>
+                </div>
+            </div>
+
+            <div class="output-panel">
+                <div class="output-header">
+                    <div class="panel-title">Trade Recommendations</div>
+                    <div class="panel-subtitle">Actionable positions based on strategy execution</div>
+                </div>
+
+                <div class="output-content" id="outputContent">
+                    <div class="empty-state">
+                        <div class="empty-icon">â</div>
+                        <div class="empty-title">Ready</div>
+                        <div class="empty-desc">Configure positions and execute to generate recommendations</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WEBHOOK_URL = "http://localhost:5678/webhook-test/pair-import";
+
+        const TICKERS = [
+            "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "NZDUSD",
+            "USDCAD", "USDCHF", "EURJPY", "GBPJPY", "AUDJPY",
+            "EURAUD", "EURGBP", "GBPCAD", "CADJPY", "CHFJPY",
+            "EURCHF", "NZDJPY", "AUDCAD", "AUDNZD", "XAUUSD"
+        ];
+
+        const state = {};
+
+        function initState() {
+            TICKERS.forEach(ticker => {
+                state[ticker] = { direction: null, score: 0 };
+            });
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('timeDisplay').textContent = timeStr;
+        }
+
+        function updateStats() {
+            let longCount = 0, shortCount = 0;
+            
+            Object.values(state).forEach(data => {
+                if (data.direction === 'long' && data.score > 0) longCount++;
+                if (data.direction === 'short' && data.score > 0) shortCount++;
+            });
+            
+            document.getElementById('longCount').textContent = longCount;
+            document.getElementById('shortCount').textContent = shortCount;
+            document.getElementById('totalCount').textContent = longCount + shortCount;
+        }
+
+        function createTickerItem(ticker) {
+            const item = document.createElement('div');
+            item.className = 'ticker-item';
+            item.dataset.ticker = ticker;
+
+            item.innerHTML = `
+                <div class="ticker-header">
+                    <div class="ticker-symbol">${ticker}</div>
+                    <div class="ticker-status">LONG</div>
+                </div>
+                <div class="score-wrapper">
+                    <div class="score-label">Conviction</div>
+                    <input type="number" class="score-input" placeholder="0-100" min="0" max="100" step="1">
+                </div>
+            `;
+
+            const input = item.querySelector('.score-input');
+            const status = item.querySelector('.ticker-status');
+
+            item.addEventListener('click', (e) => {
+                if (input.contains(e.target)) return;
+                toggleDirection(ticker, item, status);
+            });
+
+            input.addEventListener('input', (e) => {
+                let val = parseInt(e.target.value) || 0;
+                val = Math.max(0, Math.min(100, val));
+                if (e.target.value !== '') e.target.value = val;
+                state[ticker].score = val;
+                updateStats();
+            });
+
+            input.addEventListener('click', (e) => e.stopPropagation());
+
+            return item;
+        }
+
+        function toggleDirection(ticker, item, status) {
+            const current = state[ticker].direction;
+            
+            if (current === null) {
+                state[ticker].direction = 'long';
+                item.className = 'ticker-item active-long';
+                status.textContent = 'LONG';
+            } else if (current === 'long') {
+                state[ticker].direction = 'short';
+                item.className = 'ticker-item active-short';
+                status.textContent = 'SHORT';
+            } else {
+                state[ticker].direction = null;
+                item.className = 'ticker-item';
+                status.textContent = '';
+            }
+            
+            updateStats();
+        }
+
+        function clearAll() {
+            initState();
+            document.querySelectorAll('.ticker-item').forEach(item => {
+                item.className = 'ticker-item';
+                item.querySelector('.ticker-status').textContent = '';
+                item.querySelector('.score-input').value = '';
+            });
+            updateStats();
+        }
+
+        function buildPayload() {
+            const pairs = [];
+            for (const [ticker, data] of Object.entries(state)) {
+                if (data.direction !== null && data.score > 0) {
+                    pairs.push({
+                        pair: ticker,
+                        direction: data.direction,
+                        score: data.score
+                    });
+                }
+            }
+            return { pairs };
+        }
+
+        async function executeStrategy() {
+            const payload = buildPayload();
+            
+            if (payload.pairs.length === 0) {
+                showEmptyState('Configure at least one position with direction and score');
+                return;
+            }
+
+            const outputContent = document.getElementById('outputContent');
+            
+            outputContent.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">â</div>
+                    <div class="empty-title">Analyzing</div>
+                    <div class="empty-desc">Running strategy execution</div>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                let data = await response.json();
+                
+                // Handle if response is wrapped in an array
+                if (Array.isArray(data) && data.length > 0) {
+                    data = data[0];
+                }
+                
+                displayResults(data);
+                
+            } catch (error) {
+                outputContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">â</div>
+                        <div class="empty-title">Error</div>
+                        <div class="empty-desc">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function showEmptyState(message) {
+            document.getElementById('outputContent').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">â </div>
+                    <div class="empty-title">Not Ready</div>
+                    <div class="empty-desc">${message}</div>
+                </div>
+            `;
+        }
+
+        function displayResults(data) {
+            const outputContent = document.getElementById('outputContent');
+            
+            if (!data.results || !Array.isArray(data.results)) {
+                outputContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">â</div>
+                        <div class="empty-title">No Data</div>
+                        <div class="empty-desc">Invalid response from server</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Filter: only show where takeTrade is true AND finalDirection is "long" or "short"
+            const tradable = data.results.filter(item => 
+                item.takeTrade === true && 
+                (item.finalDirection === 'long' || item.finalDirection === 'short')
+            );
+
+            if (tradable.length === 0) {
+                outputContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">â</div>
+                        <div class="empty-title">No Trades</div>
+                        <div class="empty-desc">Strategy returned no actionable positions</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <table class="output-table">
+                    <thead>
+                        <tr>
+                            <th>Pair</th>
+                            <th>Direction</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            tradable.forEach(item => {
+                const directionClass = item.finalDirection === 'long' ? 'buy' : 'sell';
+                const directionText = item.finalDirection === 'long' ? 'LONG' : 'SHORT';
+
+                html += `
+                    <tr>
+                        <td class="output-pair">${item.pair}</td>
+                        <td><span class="output-direction ${directionClass}">${directionText}</span></td>
+                        <td class="output-score">${item.aggregateScore}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            outputContent.innerHTML = html;
+        }
+
+        function init() {
+            initState();
+            
+            const grid = document.getElementById('tickerGrid');
+            TICKERS.forEach(ticker => {
+                grid.appendChild(createTickerItem(ticker));
+            });
+
+            document.getElementById('clearBtn').addEventListener('click', clearAll);
+            document.getElementById('executeBtn').addEventListener('click', executeStrategy);
+            
+            updateStats();
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
